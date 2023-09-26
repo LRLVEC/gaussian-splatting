@@ -47,10 +47,11 @@ class Scene:
         self.test_cameras = {}
 
         if os.path.exists(os.path.join(args.source_path, "sparse")):
-            scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval)
+            scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, args.lazy_load)
         elif os.path.exists(os.path.join(args.source_path, "transforms.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
-            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
+            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval,
+                                                           args.lazy_load)
         else:
             assert False, "Could not recognize scene type!"
 
@@ -78,10 +79,10 @@ class Scene:
         for resolution_scale in resolution_scales:
             print("Loading Training Cameras with scale {}".format(resolution_scale))
             self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale,
-                                                                            args)
+                                                                            args, args.lazy_load)
             print("Loading Test Cameras")
             self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale,
-                                                                           args)
+                                                                           args, args.lazy_load)
 
         if self.loaded_iter:
             self.gaussians.load_ply(
@@ -93,8 +94,14 @@ class Scene:
         point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))
         self.gaussians.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
 
+    def getCameraNum(self, scale=1.0):
+        return len(self.train_cameras[scale])
+
     def getTrainCameras(self, scale=1.0):
         return self.train_cameras[scale]
+
+    def getCamera(self, idx, scale=1.0):
+        return self.train_cameras[scale][idx]
 
     def getAllTrainCameras(self):
         all_cams = []
