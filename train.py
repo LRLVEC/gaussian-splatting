@@ -12,6 +12,7 @@
 import os
 import torch
 from random import randint
+from numpy.random import permutation
 from utils.loss_utils import l1_loss, ssim
 from gaussian_renderer import render, network_gui
 import sys
@@ -81,9 +82,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         if not viewpoint_stack:
             # viewpoint_stack = scene.getTrainCameras().copy()
-            viewpoint_stack = scene.getAllTrainCameras().copy()
-            # print(len(viewpoint_stack))
-        viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
+            # viewpoint_stack = scene.getAllTrainCameras().copy()
+            viewpoint_stack = permutation(scene.getCameraNum()).tolist()
+        viewpoint_cam = scene.getCamera(viewpoint_stack.pop())
 
         # Render
         if (iteration - 1) == debug_from:
@@ -93,11 +94,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             "viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         # Loss
-        gt_image = viewpoint_cam.original_image.cuda()
+        gt_image = viewpoint_cam.load_image().cuda()
         Ll1 = l1_loss(image, gt_image)
         ssim_val = ssim(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim_val)
         loss.backward()
+        viewpoint_cam.remove_image()
 
         iter_end.record()
 
@@ -186,7 +188,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
         }, {
             'name':
             'train',
-            'cameras': [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(5, 30, 5)]
+            'cameras': [scene.getTrainCameras()[idx % scene.getCameraNum()] for idx in range(5, 30, 5)]
         })
 
         for config in validation_configs:
@@ -195,7 +197,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                 psnr_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
                     image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
-                    gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+                    gt_image = torch.clamp(viewpoint.load_image().to("cuda"), 0.0, 1.0)
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(config['name'] + "_view_{}/render".format(viewpoint.image_name),
                                              image[None],
@@ -206,6 +208,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                                                  global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
+                    viewpoint.remove_image()
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras'])
                 print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))

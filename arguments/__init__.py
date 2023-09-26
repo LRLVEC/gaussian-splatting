@@ -54,6 +54,9 @@ class ModelParams(ParamGroup):
         self._white_background = False
         self.data_device = "cpu"
         self.eval = False
+        # if lazy_load enabled, images from dataset will be load when required
+        # enable this only in rendering / evaluation mode
+        self.lazy_load = False
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):
