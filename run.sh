@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2 python train.py -r 1 -s /raid/yuanxing/datasets/galbot/pharmacy_center -m output/pharmacy_center_opacity --ip 127.0.0.2
