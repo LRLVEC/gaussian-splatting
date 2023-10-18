@@ -28,7 +28,7 @@ class Scene:
                  gaussians: GaussianModel,
                  load_iteration=None,
                  shuffle=True,
-                 resolution_scales=[1.0, 2.0, 4.0, 8.0]):
+                 resolution_scales=[1.0]):
         """b
         :param path: Path to colmap scene main folder.
         """

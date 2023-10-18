@@ -23,6 +23,9 @@ class Camera(nn.Module):
                  colmap_id,
                  R,
                  T,
+                 focalx,
+                 focaly,
+                 K,
                  FoVx,
                  FoVy,
                  image_path,
@@ -41,6 +44,9 @@ class Camera(nn.Module):
         self.colmap_id = colmap_id
         self.R = R
         self.T = T
+        self.focalx = focalx
+        self.focaly = focaly
+        self.K = K
         self.FoVx = FoVx
         self.FoVy = FoVy
         self.image_name = image_name

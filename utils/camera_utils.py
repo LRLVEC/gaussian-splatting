@@ -13,12 +13,17 @@ from scene.cameras import Camera
 import numpy as np
 from utils.general_utils import PILtoTorch
 from utils.graphics_utils import fov2focal
+from PIL import Image
 
 WARNED = False
 
 
 def loadCam(args, id, cam_info, resolution_scale, lazy_load):
-    orig_w, orig_h = cam_info.image.size
+    if cam_info.image == None:
+        image = Image.open(cam_info.image_path)
+    else:
+        image = cam_info.image
+    orig_w, orig_h = image.size
 
     if args.resolution in [1, 2, 4, 8]:
         resolution = (round(orig_w / (resolution_scale * args.resolution)),
@@ -41,7 +46,7 @@ def loadCam(args, id, cam_info, resolution_scale, lazy_load):
         resolution = (int(orig_w / scale), int(orig_h / scale))
 
     loaded_mask = None
-    resized_image_rgb = PILtoTorch(cam_info.image, resolution)
+    resized_image_rgb = PILtoTorch(image, resolution)
     gt_image = resized_image_rgb[:3, ...]
     if resized_image_rgb.shape[1] == 4:
         loaded_mask = resized_image_rgb[3:4, ...]
@@ -58,6 +63,9 @@ def loadCam(args, id, cam_info, resolution_scale, lazy_load):
                   T=cam_info.T,
                   FoVx=cam_info.FovX,
                   FoVy=cam_info.FovY,
+                  K=cam_info.K,
+                  focalx=cam_info.focalx / scale,
+                  focaly=cam_info.focaly / scale,
                   image_path=cam_info.image_path,
                   image_size=resolution,
                   image=gt_image,

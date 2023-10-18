@@ -30,6 +30,9 @@ class CameraInfo(NamedTuple):
     T: np.array
     FovY: np.array
     FovX: np.array
+    K: np.array
+    focalx: np.array
+    focaly: np.array
     image: np.array
     image_path: str
     image_name: str
@@ -86,9 +89,11 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, lazy_load):
         uid = intr.id
         R = np.transpose(qvec2rotmat(extr.qvec))
         T = np.array(extr.tvec)
+        K = np.zeros((4, ), np.float32)
 
         if intr.model == "SIMPLE_PINHOLE":
             focal_length_x = intr.params[0]
+            focal_length_y = focal_length_x
             FovY = focal2fov(focal_length_x, height)
             FovX = focal2fov(focal_length_x, width)
         elif intr.model == "PINHOLE":
@@ -96,6 +101,12 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, lazy_load):
             focal_length_y = intr.params[1]
             FovY = focal2fov(focal_length_y, height)
             FovX = focal2fov(focal_length_x, width)
+        elif intr.model == "OPENCV_FISHEYE":
+            focal_length_x = intr.params[0]
+            focal_length_y = intr.params[1]
+            FovX = 0
+            FovY = 0
+            K = np.array(intr.params[4:8])
         else:
             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
 
@@ -111,6 +122,9 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, lazy_load):
                               T=T,
                               FovY=FovY,
                               FovX=FovX,
+                              K=K,
+                              focalx=focal_length_x,
+                              focaly=focal_length_y,
                               image=image,
                               image_path=image_path,
                               image_name=image_name,

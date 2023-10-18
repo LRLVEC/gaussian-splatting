@@ -16,6 +16,7 @@ from tqdm import tqdm
 from os import makedirs
 from gaussian_renderer import render
 import torchvision
+import imageio
 from utils.general_utils import safe_state
 from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args
@@ -24,19 +25,27 @@ from gaussian_renderer import GaussianModel
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    depth_exr_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depths")
+    depth_png_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depths_view")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
 
     makedirs(render_path, exist_ok=True)
+    makedirs(depth_exr_path, exist_ok=True)
+    makedirs(depth_png_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
 
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        rendering = render(view, gaussians, pipeline, background)["render"]
+        render_pkg = render(view, gaussians, pipeline, background)
+        rendering = render_pkg["render"]
+        depth = render_pkg["depth"]
         gt = view.load_image()
-        # gt = view.original_image[0:3, :, :]
+        max_depth = torch.max(depth).item()
+        depth_exr = depth.permute(1, 2, 0).to("cpu", torch.float32).numpy()
+        imageio.imwrite(os.path.join(depth_exr_path, '{0:05d}'.format(idx) + ".exr"), depth_exr)
+        torchvision.utils.save_image(depth / max_depth, os.path.join(depth_png_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
         view.remove_image()
-
 
 
 def render_sets(dataset: ModelParams, iteration: int, pipeline: PipelineParams, skip_train: bool, skip_test: bool):
